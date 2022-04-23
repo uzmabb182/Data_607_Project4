@@ -5,22 +5,188 @@ date: "April 23, 2022"
 output: html_document
 ---
 
+For this project, you can start with a spam/ham dataset, then predict the class of new documents (either withheld from the training dataset or from another source such as your own spam folder).   One example corpus:   https://spamassassin.apache.org/old/publiccorpus/
+
+### Loading the libraries:
 ```{r}
-#loading tm
+suppressMessages(library(stringr))
+suppressMessages(library(dplyr))
+library(tidytext)
+library(ggplot2)
+library(tidyr)
+suppressMessages(library(wordcloud))
+library(readr)
+library(purrr)
 library(tm)
 ```
 
+
 ```{r}
-# https://raw.githubusercontent.com/uzmabb182/Data_607_Project4/main/ham_spam_data/easy_ham/00001.7c53336b37003a9286aba55d2945844c
+suppressMessages(library(data.table))
+suppressMessages(library(magrittr))
+library(e1071) 
+```
+
+```{r}
+library(caret)
+```
+
+### To load the corpus data into ‘spam_folder’ and ‘ham_folder’.
+
+```{r}
+spam_folder <- 'C:/Users/Uzma/CUNY_SPS_PROJECTS/Data_607_Project4/spam/'
+
+ham_folder <- 'C:/Users/Uzma/CUNY_SPS_PROJECTS/Data_607_Project4/easy_ham/'
+
+length(list.files(path = spam_folder))
+```
+
+### Using ‘list.files’ on our ‘spam_folder’ object which produces a character vector of the names of files 
+
+```{r}
+spam_files <- list.files(path = spam_folder, full.names = TRUE)
+ham_files <- list.files(path = ham_folder, full.names = TRUE)
+
+```
+
+### Read files into a data frame and assigning column names
+
+```{r}
+spam <- list.files(path = spam_folder) %>%
+  as.data.frame() %>%
+  set_colnames("file") %>%
+  mutate(text = lapply(spam_files, read_lines)) %>%
+  unnest(c(text)) %>%
+  mutate(class = "spam",
+         spam = 1) %>%
+  group_by(file) %>%
+  mutate(text = paste(text, collapse = " ")) %>%
+  ungroup() %>%
+  distinct()
+
+head(spam)
+```
+
+####  The ‘lapply’ function takes a list, vector or data frame as input and gives output in the list.
+
+```{r}
+ham <- list.files(path = ham_folder) %>%
+  as.data.frame() %>%
+  set_colnames("file") %>%
+  mutate(text = lapply(ham_files, read_lines)) %>%
+  unnest(c(text)) %>%
+  mutate(class = "ham",
+         spam = 0) %>%
+  group_by(file) %>%
+  mutate(text = paste(text, collapse = " ")) %>%
+  ungroup() %>%
+  distinct()
+
+head(ham)
+```
+
+#### Using the rbind() fuction to combine both spam/ham vectors
+
+```{r}
+ham_spam<- rbind(ham, spam) %>%
+  select(class, spam,file, text)
+
+
+```
+
+### Tidy the data using str_replace function
+
+```{r}
+ham_spam$text <- ham_spam$text %>%
+  str_replace(.,"[\\r\\n\\t]+", "")
+
+replacePunctuation <- content_transformer(function(x) {return (gsub("[[:punct:]]", " ", x))})
+
+```
+
+
+### Document Term Matrix:
+
+```{r}
+corpus <- Corpus(VectorSource(ham_spam$text))
+```
+
+```{r}
+corpus <- Corpus(VectorSource(ham_spam$text)) %>%
+  tm_map(content_transformer(tolower)) %>%
+  tm_map(removeWords, stopwords("english"))%>%
+  tm_map(replacePunctuation) %>%
+  tm_map(removeNumbers) %>%
+  tm_map(stripWhitespace)
+```
+
+```{r}
+dtm <- DocumentTermMatrix(corpus)
+dtm <- removeSparseTerms(dtm,1-(10/length(corpus)))
+
+dim(dtm)
+```
+
+### Now Training and Testing Data
+
+```{r}
+ham_spam_dtm <- dtm %>%
+  as.matrix() %>%
+  as.data.frame() %>%
+  sapply(., as.numeric) %>%
+  as.data.frame() %>%
+  mutate(class = ham_spam$class) %>%
+  select(class, everything())
+
+ham_spam_dtm$class <- as.factor(ham_spam_dtm$class)
+```
+
+# Creating training and testing set
+
+```{r}
+sample_size <- floor(0.8 * nrow(ham_spam_dtm))
+```
+
+```{r}
+set.seed(1500)
+index <- sample(seq_len(nrow(ham_spam_dtm)), size = sample_size)
 ```
 
 
 ```{r}
-
+dtm_train <- ham_spam_dtm[index, ]
+dtm_test <-  ham_spam_dtm[-index, ]
 ```
+
+### Count of training and testing set
+
+```{r}
+train_labels <- dtm_train$class
+test_labels <- dtm_test$class
+```
+
+
+### Creating proportion for training & test Spam
 
 
 ```{r}
-
+prop.table(table(train_labels))
 ```
+
+
+### Training the Model Using Naive Bayes model:
+
+```{r}
+dtm_train[ , 2:5298] <- ifelse(dtm_train[ , 2:5298] == 0, "No", "Yes")
+dtm_test[ , 2:5298] <- ifelse(dtm_test[ , 2:5298] == 0, "No", "Yes")
+
+model_classifier <- naiveBayes(dtm_train, train_labels) 
+
+test_pred <- predict(model_classifier, dtm_test)
+
+confusionMatrix(test_pred, test_labels, positive = "spam", 
+                dnn = c("Prediction","Actual"))
+```
+### Conclusion:
+
 
