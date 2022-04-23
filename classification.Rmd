@@ -28,7 +28,7 @@ library(e1071)
 ```
 
 ```{r}
-library(caret)
+suppressMessages(library(caret))
 ```
 
 ### To load the corpus data into ‘spam_folder’ and ‘ham_folder’.
@@ -188,5 +188,11 @@ confusionMatrix(test_pred, test_labels, positive = "spam",
                 dnn = c("Prediction","Actual"))
 ```
 ### Conclusion:
+
+The Model prediction accuracy is 99% for the emails into the proper categories. 
+The 99% sensivity rate means that 99% of the spam emails were classified correctly.
+The 99% specificity rate means that 99% of the ham emails were classified correctly.
+
+
 
 
