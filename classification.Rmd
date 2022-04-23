@@ -1,0 +1,26 @@
+---
+title: "Spam/Ham Email Classification - Project 4"
+author: "Mubashira Qari"
+date: "April 23, 2022"
+output: html_document
+---
+
+```{r}
+#loading tm
+library(tm)
+```
+
+```{r}
+# https://raw.githubusercontent.com/uzmabb182/Data_607_Project4/main/ham_spam_data/easy_ham/00001.7c53336b37003a9286aba55d2945844c
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
